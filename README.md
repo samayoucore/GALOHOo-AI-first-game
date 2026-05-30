@@ -1,5 +1,7 @@
 # GALOHOo | AI-first game
 
+[You can watch it here](https://samayoucore.github.io/GALOHOo-AI-first-game/)
+
 **GALOHOo** is a browser-based 2D pixel art game with a top-down view, built as an AI-first game development experiment.
 
 The core idea of the game is to turn real-life productivity into in-game progress. The player creates tasks in a ToDo list, sets their importance, completes them in real life, and receives in-game gold and resources as a reward. These rewards are then used to develop a small island settlement.
