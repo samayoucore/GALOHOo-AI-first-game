@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Pixel Civ RPG</title>
+    <link rel="stylesheet" href="style.css" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
+  </head>
+
+  <body>
+    <!-- ЭКРАН ЗАГРУЗКИ -->
+    <div id="loading-screen">
+      <div class="loader-content">
+        <h1 class="loading-title">PIXEL CIV</h1>
+        <div id="loading-message">Загрузка пикселей...</div>
+        <div class="progress-container">
+          <div id="progress-bar" class="progress-bar"></div>
+        </div>
+        <div id="loading-percent">0%</div>
+        <div class="hint-box">
+          <span class="hint-label">ПОДСКАЗКА:</span>
+          <span id="loading-hint">Жители любят спать по ночам.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ИГРОВОЙ ИНТЕРФЕЙС -->
+    <div id="ui-layer" style="display: none">
+      <!-- 1. ВЕРХНЯЯ ПАНЕЛЬ (Ресурсы + Уведомления) -->
+      <div class="top-bar-container">
+        <div class="top-hud">
+          <div class="stat-box gold">💰 <span id="gold-display">0</span></div>
+          <div class="stat-box wood">🌲 <span id="wood-display">0</span></div>
+          <div class="stat-box stone">🪨 <span id="stone-display">0</span></div>
+          <div class="stat-box metal">🔩 <span id="metal-display">0</span></div>
+
+          <div class="level-panel">
+            <div class="level-badge">LVL <span id="level-display">1</span></div>
+            <div class="xp-bar-container">
+              <div id="xp-bar-fill" class="xp-bar-fill"></div>
+              <span id="xp-text" class="xp-text">0 / 100</span>
+            </div>
+          </div>
+        </div>
+
+        <div
+          class="notif-wrapper"
+          style="display: flex; align-items: flex-start"
+        >
+          <!-- 1. КОЛОКОЛЬЧИК (Слева) -->
+          <button id="notif-btn" class="notif-btn" onclick="toggleNotifPanel()">
+            🔔
+            <div id="notif-badge" class="notif-badge" style="display: none">
+              0
+            </div>
+          </button>
+
+          <!-- 2. КНОПКА КОРАБЛЯ (Справа) -->
+          <!-- margin-left: 10px - отступ от колокольчика -->
+          <!-- Цвета заменены на красные (#ff5252, #d32f2f) -->
+          <button
+            id="ship-alert-btn"
+            class="notif-btn"
+            style="
+              display: none;
+              margin-left: 10px;
+              color: #ff5252;
+              border-color: #d32f2f;
+            "
+            onclick="focusOnShip()"
+          >
+            ⛵
+          </button>
+
+          <!-- ... панель уведомлений (notif-panel) ... -->
+          <div id="notif-panel" class="notif-panel" style="display: none">
+            <div class="notif-header">Запросы жителей</div>
+            <ul id="notif-list"></ul>
+            <div id="notif-empty" class="notif-empty">Нет запросов</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. ЧИТЫ -->
+      <div class="cheat-panel" style="display: none">
+        <button onclick="cheatResources()" class="cheat-btn">🛠 Max Res</button>
+        <button onclick="cheatLevel()" class="cheat-btn">⚡ Lvl 100</button>
+        <button
+          onclick="selectBuilding('house')"
+          class="cheat-btn"
+          style="background: #e65100; border-color: #ef6c00"
+        >
+          🏠 Build House
+        </button>
+        <button
+          onclick="resetGame()"
+          class="cheat-btn"
+          style="background: #d32f2f; border-color: #b71c1c; margin-top: 10px"
+        >
+          ❌ WIPE SAVE
+        </button>
+      </div>
+
+      <!-- 3. НИЖНЯЯ ПАНЕЛЬ (ТОЛЬКО ЭРА) -->
+      <div class="shop-panel" style="justify-content: center">
+        <div class="era-display">ЭРА: <span id="era-name">Племя</span></div>
+
+        <!-- Кнопок зданий больше нет -->
+
+        <div class="shop-controls" style="margin-left: 20px">
+          <button onclick="tryAdvanceEra()" class="action-btn era-btn">
+            🚀 ЭРА UP<br /><span id="era-cost" class="cost-text">500g</span>
+          </button>
+          <div id="build-hint" class="hint-text" style="display: none">
+            Выберите место
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. ПРАВАЯ ПАНЕЛЬ (КНОПКА СТАТИСТИКИ + ЗАДАЧИ) -->
+      <div class="right-panel-container">
+        <!-- Кнопка статистики -->
+        <button class="stats-btn" onclick="toggleStatsPanel()">📊</button>
+
+        <!-- Задачи -->
+        <div class="task-container">
+          <div class="task-header">Квесты</div>
+          <div class="input-group-col">
+            <input type="text" id="task-input" placeholder="Название..." />
+            <div class="task-options">
+              <select id="task-difficulty">
+                <option value="1">x1</option>
+                <option value="1.5">x1.5</option>
+                <option value="2">x2</option>
+              </select>
+              <input type="number" id="task-timer" placeholder="Мин." />
+            </div>
+            <button onclick="addTask()" class="add-btn">ДОБАВИТЬ</button>
+          </div>
+          <ul id="task-list"></ul>
+        </div>
+      </div>
+
+      <!-- 5. ОКНО СТАТИСТИКИ (ВОТ ОНО!) -->
+      <div
+        id="stats-overlay"
+        class="modal-overlay"
+        style="display: none"
+        onclick="closeStatsOutside(event)"
+      >
+        <div class="stats-panel">
+          <div class="stats-header">
+            <span>СТАТИСТИКА</span>
+            <button class="close-icon-btn" onclick="toggleStatsPanel()">
+              ×
+            </button>
+          </div>
+
+          <div class="stats-content">
+            <div class="stat-row">
+              📅 Дней прошло: <span id="stat-days">0</span>
+            </div>
+            <div class="stat-row">👥 Жителей: <span id="stat-pop">0</span></div>
+            <div class="stat-row">
+              ✅ Задач выполнено: <span id="stat-tasks">0</span>
+            </div>
+            <hr class="pixel-divider" />
+            <div class="stat-row">
+              🪓 Деревьев срублено: <span id="stat-trees">0</span>
+            </div>
+            <div class="stat-row">
+              ⛏️ Камней добыто: <span id="stat-stones">0</span>
+            </div>
+            <hr class="pixel-divider" />
+            <div class="stats-subtitle">ВСЕГО ДОБЫТО:</div>
+            <div class="stat-row">
+              💰 Золота: <span id="stat-total-gold" class="val-gold">0</span>
+            </div>
+            <div class="stat-row">
+              🌲 Дерева: <span id="stat-total-wood" class="val-wood">0</span>
+            </div>
+            <div class="stat-row">
+              🪨 Камня: <span id="stat-total-stone" class="val-stone">0</span>
+            </div>
+            <div class="stat-row">
+              🔩 Металла: <span id="stat-total-metal" class="val-metal">0</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6. УВЕДОМЛЕНИЕ О СОХРАНЕНИИ -->
+      <div id="save-notification">ИГРА СОХРАНЕНА</div>
+
+      <!-- КНОПКА ОТКРЫТИЯ СКИНОВ (ПРАВЫЙ НИЖНИЙ УГОЛ) -->
+      <!-- КНОПКА ОТКРЫТИЯ СКИНОВ (Переделанная) -->
+      <button id="skin-btn" class="skin-menu-btn" onclick="toggleSkinPanel()">
+        🎨
+      </button>
+
+      <!-- ОКНО СКИНОВ И КЕЙСОВ (Новый дизайн) -->
+      <div
+        id="skin-overlay"
+        class="modal-overlay"
+        style="display: none"
+        onclick="closeSkinsOutside(event)"
+      >
+        <div class="skin-panel">
+          <!-- ЛЕВАЯ КОЛОНКА: ВКЛАДКИ -->
+          <div class="skin-sidebar">
+            <div class="sidebar-title">МЕНЮ</div>
+            <button class="tab-btn active" onclick="switchSkinTab('inventory')">
+              🎒 Инвент.
+            </button>
+            <button class="tab-btn" onclick="switchSkinTab('cases')">
+              🎰 Кейсы
+            </button>
+          </div>
+
+          <!-- ПРАВАЯ КОЛОНКА: КОНТЕНТ -->
+          <div class="skin-body">
+            <!-- Шапка с кнопкой закрытия -->
+            <div class="skin-header-bar">
+              <span id="skin-panel-title">ИНВЕНТАРЬ</span>
+              <button class="close-icon-btn" onclick="toggleSkinPanel()">
+                ×
+              </button>
+            </div>
+
+            <!-- Вкладка: ИНВЕНТАРЬ -->
+            <div id="tab-inventory" class="skin-content" style="display: flex">
+              <div id="skin-grid" class="skin-grid">
+                <!-- Сюда скрипт добавит скины -->
+              </div>
+              <div class="skin-footer-info">
+                <span id="skin-preview-text">Текущий: Стандарт</span>
+              </div>
+            </div>
+
+            <!-- Вкладка: КЕЙСЫ -->
+            <div id="tab-cases" class="skin-content" style="display: none">
+              <div class="case-info">
+                <div class="case-title">СЛУЧАЙНЫЙ КУРСОР</div>
+                <div class="case-cost">
+                  Цена: <span style="color: #ffd700">500g</span>
+                </div>
+              </div>
+
+              <div class="roulette-wrapper">
+                <div class="roulette-line"></div>
+                <div id="roulette-strip" class="roulette-strip"></div>
+              </div>
+
+              <button
+                id="spin-btn"
+                class="action-btn spin-btn"
+                onclick="spinCase()"
+              >
+                КРУТИТЬ
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ВСПЛЫВАШКА ПОЛУЧЕНИЯ СКИНА -->
+      <div id="reward-popup" class="reward-overlay" style="display: none">
+        <div class="reward-box">
+          <div class="reward-title">ВЫПАЛ ПРЕДМЕТ!</div>
+          <div id="reward-icon" class="reward-icon">🎨</div>
+          <div id="reward-name" class="reward-name">Название</div>
+          <div class="reward-actions">
+            <button class="btn-accept" onclick="closeReward(true)">
+              ЭКИПИРОВАТЬ
+            </button>
+            <button class="btn-reject" onclick="closeReward(false)">
+              В ИНВЕНТАРЬ
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ОКНО ИНФОРМАЦИИ О ЖИТЕЛЕ -->
+      <div
+        id="villager-overlay"
+        class="modal-overlay"
+        style="display: none"
+        onclick="closeVillagerOutside(event)"
+      >
+        <div class="villager-panel">
+          <div class="villager-header">
+            <span>ДОСЬЕ ЖИТЕЛЯ</span>
+            <button class="close-icon-btn" onclick="closeVillagerPanel()">
+              ×
+            </button>
+          </div>
+
+          <div class="villager-body">
+            <!-- Левая часть: Аватар -->
+            <div class="villager-avatar-box">
+              <div id="villager-avatar-view"></div>
+              <!-- Сюда вставим спрайт через JS -->
+              <div id="villager-name">Имя</div>
+              <div id="villager-job">Профессия</div>
+            </div>
+
+            <!-- Правая часть: Статы -->
+            <div class="villager-stats-box">
+              <div class="stat-row">
+                ⚡ Энергия: <span id="v-stat-energy">100</span>%
+              </div>
+              <hr class="pixel-divider" />
+              <div class="stats-subtitle">ДОБЫТО РЕСУРСОВ:</div>
+              <div class="stat-row">
+                🌲 Дерева: <span id="v-stat-wood" class="val-wood">0</span>
+              </div>
+              <div class="stat-row">
+                🪨 Камня: <span id="v-stat-stone" class="val-stone">0</span>
+              </div>
+
+              <div class="stat-row">
+                🔩 Металла: <span id="v-stat-metal" class="val-metal">0</span>
+              </div>
+              <hr class="pixel-divider" />
+              <div
+                class="stat-row"
+                style="font-size: 8px; color: #90a4ae; margin-top: auto"
+              >
+                Статус: <span id="v-stat-state" style="color: #fff">IDLE</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ОКНО ТОРГОВЛИ -->
+      <div
+        id="trade-overlay"
+        class="modal-overlay"
+        style="display: none"
+        onclick="closeTradeOutside(event)"
+      >
+        <div class="villager-panel" style="height: 220px">
+          <!-- Используем тот же стиль, что у жителей -->
+          <div class="villager-header">
+            <span>ТОРГОВЕЦ</span>
+            <button class="close-icon-btn" onclick="closeTradePanel()">
+              ×
+            </button>
+          </div>
+
+          <div
+            style="
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              height: 100%;
+              text-align: center;
+              gap: 15px;
+            "
+          >
+            <div style="font-size: 10px; color: #bcaaa4">
+              Я предлагаю сделку:
+            </div>
+
+            <!-- Описание сделки -->
+            <div
+              id="trade-offer-text"
+              style="
+                font-size: 12px;
+                line-height: 1.8;
+                background: rgba(0, 0, 0, 0.3);
+                padding: 10px;
+                border: 2px solid #5d4037;
+                width: 90%;
+              "
+            >
+              ...
+            </div>
+
+            <div class="reward-actions">
+              <button class="btn-accept" onclick="acceptTrade()">СДЕЛКА</button>
+              <button class="btn-reject" onclick="closeTradePanel()">
+                ОТКАЗ
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="game-container"></div>
+
+    <!-- СКРИПТЫ (Строгий порядок!) -->
+    <script src="js/state.js"></script>
+    <script src="js/graphics.js"></script>
+    <script src="js/saves.js"></script>
+    <script src="js/world.js"></script>
+    <script src="js/villagers.js"></script>
+    <script src="js/buildings.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/main.js"></script>
+  </body>
+</html>
